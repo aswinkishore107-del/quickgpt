@@ -7,8 +7,10 @@ import Prism from 'prismjs'
 const Message = ({message}) => {
 
 useEffect(()=>{
-  Prism.highlightAll()
-},[message.content])
+  if (!message.isImage) {
+    Prism.highlightAll()
+  }
+},[message.content, message.isImage])
 
   return (
     <div>
@@ -36,11 +38,14 @@ useEffect(()=>{
 dark:bg-[#57317C]/30 border border-[#80609F]/30 rounded-md my-4">
 
   {message.isImage ? (
-    <img
-      src={message.content}
-      alt=""
-      className="w-full max-w-md mt-2 rounded-md"
-    />
+    <div className="relative group">
+      <img
+        src={message.content}
+        alt="Generated AI"
+        referrerPolicy="no-referrer"
+        className="w-full max-w-md mt-2 rounded-md object-cover shadow-md"
+      />
+    </div>
   ) : (
     <div className="text-sm dark:text-primary reset-tw">
       <Markdown>{message.content}</Markdown>
@@ -58,3 +63,4 @@ dark:bg-[#57317C]/30 border border-[#80609F]/30 rounded-md my-4">
 )
 }
 export default Message;
+

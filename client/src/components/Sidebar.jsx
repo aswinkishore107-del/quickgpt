@@ -9,15 +9,9 @@ import { Token } from 'prismjs'
 
 const Sidebar = ({isMenuOpen,setIsMenuOpen}) => {
 
-  const { chats, setSelectedChat, theme, setTheme, user ,navigate, createNewChat,
-  axios, setChats, fetchUsersChats, setToken,  token} = useAppContext()
+  const { chats, setSelectedChat, theme, setTheme, user, navigate, createNewChat,
+  axios, setChats, fetchUsersChats, setToken, token, logout } = useAppContext()
   const [search, setSearch] = useState('')
-
-  const logout = () => {
-  localStorage.removeItem('token')
-  setToken(null)
-  toast.success('Logged out successfully')
-}
 
 const deleteChat = async (e, chatId) => {
   try {

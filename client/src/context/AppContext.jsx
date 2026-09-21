@@ -15,62 +15,112 @@ export const AppContextProvider = ({ children }) => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
 
-  const [token, setToken] = useState(localStorage.getItem('token') || null)
-  const [loadingUser, setLoadingUser] = useState(true)
+  const getStoredToken = () => {
+    const t = localStorage.getItem('token');
+    if (!t || t === 'undefined' || t === 'null') {
+      localStorage.removeItem('token');
+      return null;
+    }
+    return t;
+  };
+
+  const [token, setToken] = useState(getStoredToken());
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  // Automatically handle 401 Unauthorized responses across all requests
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && error.response.status === 401) {
+          localStorage.removeItem('token');
+          setToken(null);
+          setUser(null);
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []);
 
   const fetchUser = async () => {
-  try {
-    const { data } = await axios.get('/api/user/data', {
-      headers: { Authorization: token }
-    })
-    if (data.success) {
-      setUser(data.user)
-    } else {
-      toast.error(data.message)
+    if (!token || token === 'undefined' || token === 'null') {
+      setToken(null);
+      localStorage.removeItem('token');
+      setUser(null);
+      setLoadingUser(false);
+      return;
     }
-  } catch (error) {
-    toast.error(error.message)
-  } finally {
-    setLoadingUser(false)
-  }
-}
 
-const createNewChat = async () => {
-  try {
-    if (!user) return toast('Login to create a new chat')
-    navigate('/')
-    await axios.get('/api/chat/create', {
-      headers: { Authorization: token }
-    })
-    await fetchUsersChats()
-  } catch (error) {
-    toast.error(error.message)
-  }
-}
-
-const fetchUsersChats = async () => {
-  try {
-    const { data } = await axios.get('/api/chat/get', {
-      headers: { Authorization: token }
-    })
-
-    if (data.success) {
-      setChats(data.chats)
-
-      // If the user has no chats, create one
-      if (data.chats.length === 0) {
-        await createNewChat()
-        return fetchUsersChats()
+    try {
+      const { data } = await axios.get('/api/user/data', {
+        headers: { Authorization: token }
+      });
+      if (data.success) {
+        setUser(data.user);
       } else {
-        setSelectedChat(data.chats[0])
+        setToken(null);
+        localStorage.removeItem('token');
+        setUser(null);
       }
-    } else {
-      toast.error(data.message)
+    } catch (error) {
+      if (error.response?.status === 401) {
+        setToken(null);
+        localStorage.removeItem('token');
+        setUser(null);
+      } else {
+        toast.error(error.response?.data?.message || error.message);
+      }
+    } finally {
+      setLoadingUser(false);
     }
-  } catch (error) {
-    toast.error(error.message)
-  }
-}
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+    setChats([]);
+    setSelectedChat(null);
+    toast.success('Logged out successfully');
+  };
+
+  const createNewChat = async () => {
+    try {
+      if (!user) return toast('Login to create a new chat');
+      navigate('/');
+      await axios.get('/api/chat/create', {
+        headers: { Authorization: token }
+      });
+      await fetchUsersChats();
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message);
+    }
+  };
+
+  const fetchUsersChats = async () => {
+    try {
+      const { data } = await axios.get('/api/chat/get', {
+        headers: { Authorization: token }
+      });
+
+      if (data.success) {
+        setChats(data.chats);
+
+        // If the user has no chats, create one
+        if (data.chats.length === 0) {
+          await createNewChat();
+          return fetchUsersChats();
+        } else {
+          setSelectedChat(data.chats[0]);
+        }
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message);
+    }
+  };
 
 
   useEffect(() => {
@@ -79,7 +129,7 @@ const fetchUsersChats = async () => {
     } else {
       document.documentElement.classList.remove("dark");
     }
-    localStorage.setItem('theme', theme)
+    localStorage.setItem('theme', theme);
   }, [theme]);
 
   useEffect(() => {
@@ -92,13 +142,13 @@ const fetchUsersChats = async () => {
   }, [user]);
 
   useEffect(() => {
-  if (token) {
-    fetchUser()
-  } else {
-    setUser(null)
-    setLoadingUser(false)
-  }
-}, [token])
+    if (token) {
+      fetchUser();
+    } else {
+      setUser(null);
+      setLoadingUser(false);
+    }
+  }, [token]);
 
 
   const value = {
@@ -117,6 +167,7 @@ const fetchUsersChats = async () => {
     fetchUsersChats,
     token,
     setToken,
+    logout,
     axios
   };
 
